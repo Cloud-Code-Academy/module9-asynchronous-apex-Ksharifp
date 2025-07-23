@@ -17,7 +17,7 @@
  * 
  * Note: The class below contains placeholders for implementing a queueable job to update accounts and opportunities.
  */
-public with sharing class NextStepQueueable {
+public with sharing class NextStepQueueable implements Queueable{
 
     // Member variable to store the accounts
     private Map<Id,Account> accounts;
@@ -25,20 +25,27 @@ public with sharing class NextStepQueueable {
     // Constructor to accept the accounts
     public NextStepQueueable(Map<Id,Account> accounts) {
         // Store the accounts in a member variable
+        this.accounts = accounts;
     }
 
     // Method to queue the job
     public static void enqueueJob() {
         // Get 10 accounts with Next Step populated
-
+        List<Account> accountsWithNextStep = [
+            SELECT Id, Next_Step__c 
+            FROM Account 
+            WHERE Next_Step__c != null ORDER BY Name LIMIT 10];
         // If there are any accounts, queue the job using System.enqueueJob
+        if (!accountsWithNextStep.isEmpty()) {
+            //System.enqueueJob(new NextStepQueueable());
+        }
     }
 
     /*
      * Update/Uncomment the template code to create a method
      * Method to execute the queueable job
      */
-    //[public | private ] [static] data_type execute (input parameters) {
+    public void execute (QueueableContext qContext) {
         // Get the accounts from the member variable
 
             // Remove the Next Step using the helper method
@@ -52,7 +59,7 @@ public with sharing class NextStepQueueable {
         // Update the opportunities
 
         // Call the enqueueJob method to queue another job to process more records.
-    //}
+    }
 
     // Helper method to remove the Next Step
     // Overloaded method to accept an opportunity
