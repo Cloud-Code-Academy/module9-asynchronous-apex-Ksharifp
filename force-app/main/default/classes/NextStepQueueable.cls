@@ -35,30 +35,44 @@ public with sharing class NextStepQueueable implements Queueable{
             SELECT Id, Next_Step__c 
             FROM Account 
             WHERE Next_Step__c != null ORDER BY Name LIMIT 10];
+
+        Map<Id, Account> accounts = new Map<Id, Account>(accountsWithNextStep);
+
         // If there are any accounts, queue the job using System.enqueueJob
         if (!accountsWithNextStep.isEmpty()) {
-            //System.enqueueJob(new NextStepQueueable());
+            ID jobID = System.enqueueJob(new NextStepQueueable(accounts));
         }
     }
-
+        
+        
     /*
      * Update/Uncomment the template code to create a method
      * Method to execute the queueable job
      */
-    public void execute (QueueableContext qContext) {
+    public void execute (QueueableContext context) {
         // Get the accounts from the member variable
-
+        List<Account> accountsToUpdate = new List<Account>();
+        for (Id accountId : accounts.keySet()) {
             // Remove the Next Step using the helper method
-
+            NextStepQueueable.removeNextStep(accounts.get(accountId));
+            accountsToUpdate.add(accounts.get(accountId));
+        }
         // Update the accounts
-
+        update accountsToUpdate;
+            
         // Get the opportunities related to the accounts
-
+        List<Opportunity> opportunities = [SELECT Id, AccountID FROM Opportunity WHERE AccountId IN : accounts.keySet()];
+        List<Opportunity> oppsToUpdate = new List<Opportunity>();
             // Remove the Next Step using the helper method
-
+        for (Opportunity opportunityToUpdate : opportunities) {
+            Opportunity newOpp = new Opportunity(Id=opportunityToUpdate.Id);
+            NextStepQueueable.removeNextStep(newOpp);
+            oppsToUpdate.add(newOpp);
+        }
         // Update the opportunities
-
+        update oppsToUpdate;
         // Call the enqueueJob method to queue another job to process more records.
+        System.enqueueJob(new NextStepQueueable(accounts));
     }
 
     // Helper method to remove the Next Step
