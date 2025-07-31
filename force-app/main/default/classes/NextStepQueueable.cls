@@ -36,11 +36,9 @@ public with sharing class NextStepQueueable implements Queueable{
             FROM Account 
             WHERE Next_Step__c != null ORDER BY Name LIMIT 10];
 
-        Map<Id, Account> accounts = new Map<Id, Account>(accountsWithNextStep);
-
         // If there are any accounts, queue the job using System.enqueueJob
         if (!accountsWithNextStep.isEmpty()) {
-            ID jobID = System.enqueueJob(new NextStepQueueable(accounts));
+              ID jobID = System.enqueueJob(new NextStepQueueable(new Map<Id, Account>(accountsWithNextStep)));
         }
     }
         
@@ -54,36 +52,57 @@ public with sharing class NextStepQueueable implements Queueable{
         List<Account> accountsToUpdate = new List<Account>();
         for (Id accountId : accounts.keySet()) {
             // Remove the Next Step using the helper method
-            NextStepQueueable.removeNextStep(accounts.get(accountId));
+            NextStepQueueable.removeNextStepAcc(accounts.get(accountId));
             accountsToUpdate.add(accounts.get(accountId));
         }
         // Update the accounts
-        update accountsToUpdate;
+         if (!accountsToUpdate.isEmpty()) {
+            update accountsToUpdate;
+        }
             
         // Get the opportunities related to the accounts
-        List<Opportunity> opportunities = [SELECT Id, AccountID FROM Opportunity WHERE AccountId IN : accounts.keySet()];
+        List<Opportunity> opportunities = [
+            SELECT Id, AccountID, NextStep 
+            FROM Opportunity 
+            WHERE AccountId IN : accounts.keySet() AND NextStep != null];
         List<Opportunity> oppsToUpdate = new List<Opportunity>();
             // Remove the Next Step using the helper method
         for (Opportunity opportunityToUpdate : opportunities) {
             Opportunity newOpp = new Opportunity(Id=opportunityToUpdate.Id);
-            NextStepQueueable.removeNextStep(newOpp);
+            NextStepQueueable.removeNextStepOpp(newOpp);
             oppsToUpdate.add(newOpp);
         }
         // Update the opportunities
-        update oppsToUpdate;
+        if (!oppsToUpdate.isEmpty()) {
+            update oppsToUpdate;
+        }
         // Call the enqueueJob method to queue another job to process more records.
-        System.enqueueJob(new NextStepQueueable(accounts));
+        // System.enqueueJob(new NextStepQueueable(accounts));
+    
+
+        // Check if there are more accounts to process before queueing another job
+        List<Account> moreAccountsWithNextStep = [
+            SELECT Id 
+            FROM Account 
+            WHERE Next_Step__c != null 
+            LIMIT 1
+        ];
+        
+        // Only queue another job if there are more records to process
+        if (!moreAccountsWithNextStep.isEmpty()) {
+            enqueueJob(); // Call the static method to queue the next batch
+        }
     }
 
     // Helper method to remove the Next Step
     // Overloaded method to accept an opportunity
-    private static void removeNextStep(Opportunity opp) {
+    private static void removeNextStepOpp(Opportunity opp) {
         opp.NextStep = null;
     }
 
     // Helper method to remove the Next Step
     // Overloaded method to accept an account
-    private static void removeNextStep(Account acc) {
+    private static void removeNextStepAcc(Account acc) {
         acc.Next_Step__c = null;
     }
 }
