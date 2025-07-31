@@ -46,10 +46,9 @@ public with sharing class NextStepBatch implements Database.Batchable<sObject>{
         for (Opportunity opp : allOpps) {
             opp.NextStep = BATCH_NEXT_STEP;
         }
-            // Set the Next Step field to 'Batching the next meetings together.'
-        update allOpps;
+        // Set the Next Step field to 'Batching the next meetings together.'
         // Update the opportunity records
-
+        update allOpps;
     }
     
     public void finish(Database.BatchableContext bc){
@@ -65,6 +64,7 @@ public with sharing class NextStepBatch implements Database.Batchable<sObject>{
                 }
             }
         }
+        sendEmailToActiveUsers(emails);
     }
 
     // Helper method to send an email to all emails in the set
